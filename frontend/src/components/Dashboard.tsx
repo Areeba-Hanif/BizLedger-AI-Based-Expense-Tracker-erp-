@@ -1,85 +1,141 @@
-import { useMemo } from 'react';
+// Dashboard.tsx (or Dashboard.jsx if you remove TypeScript types)
+import { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, AlertCircle } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Badge } from './ui/badge';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 import { Alert, AlertDescription } from './ui/alert';
-import { getMockTransactions } from '../lib/mockData';
+import axios from 'axios';
 
 interface DashboardProps {
-  user: any;
+  user?: { _id?: string; name?: string } | null;
+}
+
+interface Transaction {
+  _id: string;
+  userId: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string;
+  date: string; // ISO string from backend
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export function Dashboard({ user }: DashboardProps) {
-  const transactions = useMemo(() => getMockTransactions(), []);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  // Calculate metrics
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const userId = user?._id ?? '674b08e91d5a4'; // fallback id if needed
+        const res = await axios.get<Transaction[]>(`http://localhost:5000/api/transactions/${userId}`);
+        // normalize ensure amounts are numbers and date is string
+        const normalized = res.data.map((t) => ({
+          ...t,
+          amount: typeof t.amount === 'number' ? t.amount : Number(t.amount || 0),
+          date: typeof t.date === 'string' ? t.date : new Date(t.date).toISOString(),
+        }));
+        setTransactions(normalized);
+      } catch (err) {
+        console.error('Error fetching transactions:', err);
+        setTransactions([]); // keep UI stable
+      }
+    };
+
+    // only fetch if we have user id OR if user is null we still fetch fallback
+    fetchTransactions();
+  }, [user]);
+
+  // Current month/year (real calendar)
+  const now = useMemo(() => new Date(), []);
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
   const metrics = useMemo(() => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-
     const currentMonthTransactions = transactions.filter((t) => {
-      const date = new Date(t.date);
-      return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+      if (!t?.date) return false;
+      const d = new Date(t.date);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     });
 
     const income = currentMonthTransactions
       .filter((t) => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + (t.amount ?? 0), 0);
 
     const expenses = currentMonthTransactions
       .filter((t) => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + (t.amount ?? 0), 0);
 
     const profit = income - expenses;
-
     return { income, expenses, profit };
-  }, [transactions]);
+  }, [transactions, currentMonth, currentYear]);
 
-  // Monthly trend data
+  // Monthly trend for full year (Jan..Dec)
   const monthlyData = useMemo(() => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months.map((month, index) => {
-      const monthTransactions = transactions.filter(
-        (t) => new Date(t.date).getMonth() === index
-      );
-      const income = monthTransactions
-        .filter((t) => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
-      const expenses = monthTransactions
-        .filter((t) => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+      const monthTransactions = transactions.filter((t) => {
+        if (!t?.date) return false;
+        const d = new Date(t.date);
+        return d.getMonth() === index && d.getFullYear() === currentYear;
+      });
+
+      const income = monthTransactions.filter((t) => t.type === 'income').reduce((s, t) => s + (t.amount ?? 0), 0);
+      const expenses = monthTransactions.filter((t) => t.type === 'expense').reduce((s, t) => s + (t.amount ?? 0), 0);
 
       return { month, income, expenses };
     });
-  }, [transactions]);
+  }, [transactions, currentYear]);
 
-  // Expense by category
+  // Expense by category for current month
   const expenseByCategory = useMemo(() => {
-    const categories = transactions
-      .filter((t) => t.type === 'expense')
-      .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount;
-        return acc;
-      }, {} as Record<string, number>);
+    const currentMonthExpenses = transactions.filter((t) => {
+      if (!t?.date) return false;
+      const d = new Date(t.date);
+      return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    });
+
+    const categories = currentMonthExpenses.reduce((acc: Record<string, number>, t) => {
+      const key = t.category ?? 'Uncategorized';
+      acc[key] = (acc[key] || 0) + (t.amount ?? 0);
+      return acc;
+    }, {});
 
     return Object.entries(categories).map(([name, value]) => ({ name, value }));
-  }, [transactions]);
+  }, [transactions, currentMonth, currentYear]);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'];
 
   const financialHealth = useMemo(() => {
-    const score = Math.min(100, Math.max(0, (metrics.profit / metrics.income) * 100 || 50));
+    // avoid division by zero; if income is 0 show neutral 50
+    if (metrics.income === 0) return 50;
+    const score = Math.min(100, Math.max(0, (metrics.profit / metrics.income) * 100));
     return Math.round(score);
   }, [metrics]);
 
+  // If you prefer a visual "loading" while first fetch happens, you can toggle a loading flag.
+  // Here we simply render with whatever data we have (empty arrays produce 0 totals).
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
         <h1>Dashboard</h1>
         <p className="text-muted-foreground">
-          Welcome back, {user?.name}! Here's your business overview.
+          Welcome back, {user?.name ?? 'User'}! Here's your business overview for{' '}
+          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.
         </p>
       </div>
 
@@ -87,14 +143,14 @@ export function Dashboard({ user }: DashboardProps) {
       <Alert>
         <TrendingUp className="h-4 w-4" />
         <AlertDescription>
-          Your financial health score is <strong>{financialHealth}%</strong>.
+          Your financial health score is <strong>{financialHealth}%</strong>.{' '}
           {financialHealth >= 70 && ' Great job managing your finances!'}
           {financialHealth < 70 && financialHealth >= 50 && ' Consider reviewing your expenses.'}
           {financialHealth < 50 && ' Your expenses are high. Take action to improve cash flow.'}
         </AlertDescription>
       </Alert>
 
-      {/* Metrics Cards */}
+      {/* Metric Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -102,7 +158,7 @@ export function Dashboard({ user }: DashboardProps) {
             <ArrowUpRight className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-green-600">${metrics.income.toLocaleString()}</div>
+            <div className="text-green-600 text-xl font-semibold">${metrics.income.toLocaleString()}</div>
             <p className="text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -113,7 +169,7 @@ export function Dashboard({ user }: DashboardProps) {
             <ArrowDownRight className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-red-600">${metrics.expenses.toLocaleString()}</div>
+            <div className="text-red-600 text-xl font-semibold">${metrics.expenses.toLocaleString()}</div>
             <p className="text-muted-foreground">This month</p>
           </CardContent>
         </Card>
@@ -124,9 +180,8 @@ export function Dashboard({ user }: DashboardProps) {
             <Wallet className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className={metrics.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-              ${Math.abs(metrics.profit).toLocaleString()}
-              {metrics.profit < 0 && ' loss'}
+            <div className={metrics.profit >= 0 ? 'text-green-600 text-xl font-semibold' : 'text-red-600 text-xl font-semibold'}>
+              ${Math.abs(metrics.profit).toLocaleString()} {metrics.profit < 0 ? '(Loss)' : ''}
             </div>
             <p className="text-muted-foreground">This month</p>
           </CardContent>
@@ -139,7 +194,7 @@ export function Dashboard({ user }: DashboardProps) {
         <Card>
           <CardHeader>
             <CardTitle>Income vs Expenses</CardTitle>
-            <CardDescription>Monthly comparison for 2025</CardDescription>
+            <CardDescription>Monthly comparison for {currentYear}</CardDescription>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
@@ -163,25 +218,29 @@ export function Dashboard({ user }: DashboardProps) {
             <CardDescription>Current month breakdown</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={expenseByCategory}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {expenseByCategory.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
+            {expenseByCategory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={expenseByCategory}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {expenseByCategory.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-center text-muted-foreground">No expenses this month.</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -195,7 +254,7 @@ export function Dashboard({ user }: DashboardProps) {
         <CardContent>
           <div className="space-y-4">
             {transactions.slice(0, 5).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between gap-4">
+              <div key={transaction._id} className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                   <div
                     className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full ${
@@ -215,7 +274,7 @@ export function Dashboard({ user }: DashboardProps) {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className={transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                    {transaction.type === 'income' ? '+' : '-'}${transaction.amount.toLocaleString()}
+                    {transaction.type === 'income' ? '+' : '-'}${(transaction.amount ?? 0).toLocaleString()}
                   </p>
                   <p className="text-muted-foreground whitespace-nowrap">
                     {new Date(transaction.date).toLocaleDateString()}
@@ -223,6 +282,7 @@ export function Dashboard({ user }: DashboardProps) {
                 </div>
               </div>
             ))}
+            {transactions.length === 0 && <p className="text-muted-foreground">No transactions yet.</p>}
           </div>
         </CardContent>
       </Card>

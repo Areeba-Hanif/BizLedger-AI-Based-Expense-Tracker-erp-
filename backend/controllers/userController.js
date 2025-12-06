@@ -3,9 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import twilio from "twilio";
 
-console.log("SID:", process.env.TWILIO_ACCOUNT_SID);
-console.log("AUTH:", process.env.TWILIO_AUTH_TOKEN);
-console.log("SERVICE:", process.env.TWILIO_SERVICE_SID);
+
 
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,

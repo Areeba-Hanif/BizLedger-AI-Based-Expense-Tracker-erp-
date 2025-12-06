@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import axios from "axios";
+import { useState, useMemo, useEffect, SetStateAction } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -11,17 +12,38 @@ import { Textarea } from './ui/textarea';
 import { Plus, Edit, Trash2, Search, Sparkles } from 'lucide-react';
 import { getMockTransactions, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../lib/mockData';
 import { Alert, AlertDescription } from './ui/alert';
+import { toast } from "sonner";
+
 
 interface TransactionsProps {
   user: any;
 }
 
+interface Transaction {
+  _id: string;
+  userId: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string;
+  date: string;
+}
+
 export function Transactions({ user }: TransactionsProps) {
-  const [transactions, setTransactions] = useState(getMockTransactions());
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  
+useEffect(() => {
+  if (user?._id) {
+    axios.get(`http://localhost:5000/api/transactions/${user._id}`)
+      .then(res => setTransactions(res.data))
+      .catch(err => console.log(err));
+  }
+}, [user]);
+
 
   // Form state
   const [formType, setFormType] = useState<'income' | 'expense'>('expense');
@@ -29,63 +51,127 @@ export function Transactions({ user }: TransactionsProps) {
   const [formDescription, setFormDescription] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editType, setEditType] = useState("expense");
+  const [editDate, setEditDate] = useState("");
 
-  // Simulate AI categorization
-  const handleDescriptionChange = (description: string) => {
-    setFormDescription(description);
-    
-    // Simple AI simulation based on keywords
-    const lowercaseDesc = description.toLowerCase();
-    let suggestedCategory = '';
 
-    if (lowercaseDesc.includes('rent') || lowercaseDesc.includes('lease')) {
-      suggestedCategory = 'Rent';
-    } else if (lowercaseDesc.includes('salary') || lowercaseDesc.includes('wage')) {
-      suggestedCategory = 'Salaries';
-    } else if (lowercaseDesc.includes('office') || lowercaseDesc.includes('supplies')) {
-      suggestedCategory = 'Office Supplies';
-    } else if (lowercaseDesc.includes('marketing') || lowercaseDesc.includes('ad')) {
-      suggestedCategory = 'Marketing';
-    } else if (lowercaseDesc.includes('utility') || lowercaseDesc.includes('electric') || lowercaseDesc.includes('water')) {
-      suggestedCategory = 'Utilities';
-    } else if (lowercaseDesc.includes('sale') || lowercaseDesc.includes('revenue')) {
-      suggestedCategory = 'Sales';
-    }
+// Simulate AI categorization
+const handleDescriptionChange = (description: string) => {
+  setFormDescription(description);
 
-    if (suggestedCategory && description.length > 5) {
-      setAiSuggestion(suggestedCategory);
-    } else {
-      setAiSuggestion(null);
-    }
+  // ✅ Disable AI category auto-change while editing
+  if (openEdit) return;
+
+  // Simple AI simulation based on keywords
+  const lowercaseDesc = description.toLowerCase();
+  let suggestedCategory = '';
+
+  if (lowercaseDesc.includes('rent') || lowercaseDesc.includes('lease')) {
+    suggestedCategory = 'Rent';
+  } else if (lowercaseDesc.includes('salary') || lowercaseDesc.includes('wage')) {
+    suggestedCategory = 'Salaries';
+  } else if (lowercaseDesc.includes('office') || lowercaseDesc.includes('supplies')) {
+    suggestedCategory = 'Office Supplies';
+  } else if (lowercaseDesc.includes('marketing') || lowercaseDesc.includes('ad')) {
+    suggestedCategory = 'Marketing';
+  } else if (lowercaseDesc.includes('utility') || lowercaseDesc.includes('electric') || lowercaseDesc.includes('water')) {
+    suggestedCategory = 'Utilities';
+  } else if (lowercaseDesc.includes('sale') || lowercaseDesc.includes('revenue')) {
+    suggestedCategory = 'Sales';
+  }
+
+  if (suggestedCategory && description.length > 5) {
+    setAiSuggestion(suggestedCategory);
+  } else {
+    setAiSuggestion(null);
+  }
+};
+
+const handleAddTransaction = async (e: any) => {
+  e.preventDefault();
+
+  const newTransaction = {
+    userId: user?._id,
+    type: formType,
+    amount: parseFloat(formAmount),
+    description: formDescription,
+    category: formCategory,
+    date: formDate,
   };
 
-  const handleAddTransaction = (e: React.FormEvent) => {
-    e.preventDefault();
+  try {
+    const res = await axios.post("http://localhost:5000/api/transactions/add", newTransaction);
 
-    const newTransaction = {
-      id: Date.now().toString(),
-      type: formType,
-      amount: parseFloat(formAmount),
-      description: formDescription,
-      category: formCategory,
-      date: formDate,
-      createdBy: user.name,
+    setTransactions([res.data, ...transactions]);
+    toast.success("Transaction added successfully!");
+    setIsAddDialogOpen(false);
+
+    // Reset
+    setFormAmount("");
+    setFormDescription("");
+    setFormCategory("");
+    setFormDate(new Date().toISOString().split("T")[0]);
+  } catch (err) {
+    console.log(err);
+    toast.error("Update failed. Please try again.");
+  }
+};
+
+
+const handleDeleteTransaction = async (id: string) => {
+  try {
+    await axios.delete(`http://localhost:5000/api/transactions/${id}`);
+    setTransactions(transactions.filter((t) => t._id !== id));
+  } catch (err) {
+    console.log(err);
+  }
+};
+const handleUpdateTransaction = async () => {
+  try {
+    const payload = {
+      amount: Number(editAmount),
+      description: editDescription,
+      category: editCategory,
+      type: editType,
+      date: editDate
     };
 
-    setTransactions([newTransaction, ...transactions]);
-    
-    // Reset form
-    setFormAmount('');
-    setFormDescription('');
-    setFormCategory('');
-    setFormDate(new Date().toISOString().split('T')[0]);
-    setAiSuggestion(null);
-    setIsAddDialogOpen(false);
-  };
+  const res = await axios.put(
+  `http://localhost:5000/api/transactions/${editId}`,
+  payload
+);
 
-  const handleDeleteTransaction = (id: string) => {
-    setTransactions(transactions.filter((t) => t.id !== id));
-  };
+    // Fetch updated transactions
+    const updatedData = await axios.get(`http://localhost:5000/api/transactions/${user._id}`);
+    setTransactions(updatedData.data);
+    
+    toast.success("Transaction updated successfully!");
+
+    setOpenEdit(false);
+
+  } catch (error) {
+    console.error(error);
+   toast.error("Update failed. Please try again.");
+
+  }
+};
+
+
+const handleOpenEdit = (transaction: Transaction) => {
+  setEditId(transaction._id);
+  setEditAmount(String(transaction.amount));
+  setEditDescription(transaction.description);
+  setEditCategory(transaction.category);
+  setEditType(transaction.type);
+  setEditDate(transaction.date.slice(0, 10)); // yyyy-mm-dd format
+  setOpenEdit(true);
+};
+
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
@@ -213,6 +299,88 @@ export function Transactions({ user }: TransactionsProps) {
             </form>
           </DialogContent>
         </Dialog>
+<Dialog open={openEdit} onOpenChange={setOpenEdit}>
+  <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+    <DialogHeader>
+      <DialogTitle>Edit Transaction</DialogTitle>
+      <DialogDescription>Update the transaction details below</DialogDescription>
+    </DialogHeader>
+
+    {/* TYPE */}
+    <div className="space-y-2">
+      <Label>Type</Label>
+      <Select value={editType} onValueChange={(v: SetStateAction<string>) => setEditType(v)}>
+        <SelectTrigger>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="income">Income</SelectItem>
+          <SelectItem value="expense">Expense</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+
+    {/* AMOUNT */}
+    <div className="space-y-2 mt-3">
+      <Label>Amount</Label>
+      <Input
+        type="number"
+        value={editAmount}
+        onChange={(e) => setEditAmount(e.target.value)}
+        placeholder="0.00"
+        required
+      />
+    </div>
+
+    {/* DESCRIPTION */}
+    <div className="space-y-2 mt-3">
+      <Label>Description</Label>
+      <Textarea
+        value={editDescription}
+        onChange={(e) => setEditDescription(e.target.value)}
+        placeholder="Enter description..."
+        required
+      />
+    </div>
+
+    {/* CATEGORY */}
+    <div className="space-y-2 mt-3">
+      <Label>Category</Label>
+      <Select value={editCategory} onValueChange={setEditCategory}>
+        <SelectTrigger>
+          <SelectValue placeholder="Select category" />
+        </SelectTrigger>
+
+        <SelectContent>
+          {/* ✅ Dynamic categories same as add */}
+          {(editType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
+            <SelectItem key={cat} value={cat}>
+              {cat}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+
+    {/* DATE */}
+    <div className="space-y-2 mt-3">
+      <Label>Date</Label>
+      <Input
+        type="date"
+        value={editDate}
+        onChange={(e) => setEditDate(e.target.value)}
+        required
+      />
+    </div>
+
+    <Button onClick={handleUpdateTransaction} className="mt-4 w-full">
+      Update Transaction
+    </Button>
+  </DialogContent>
+</Dialog>
+
+
+
       </div>
 
       {/* Filters */}
@@ -278,7 +446,8 @@ export function Transactions({ user }: TransactionsProps) {
               </TableHeader>
               <TableBody>
                 {filteredTransactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
+                 <TableRow key={transaction._id}>
+
                     <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
                     <TableCell>{transaction.description}</TableCell>
                     <TableCell>{transaction.category}</TableCell>
@@ -293,13 +462,17 @@ export function Transactions({ user }: TransactionsProps) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(transaction)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+
+
+                        
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteTransaction(transaction.id)}
+                          onClick={() => handleDeleteTransaction(transaction._id)}
+
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

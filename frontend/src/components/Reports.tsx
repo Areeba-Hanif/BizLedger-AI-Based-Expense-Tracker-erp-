@@ -1,47 +1,60 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import axios from "axios";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Download, FileText } from 'lucide-react';
-import { getMockTransactions } from '../lib/mockData';
+import { Download } from 'lucide-react';
 
 interface ReportsProps {
   user: any;
 }
 
 export function Reports({ user }: ReportsProps) {
-  const transactions = useMemo(() => getMockTransactions(), []);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth().toString());
-  const [selectedYear] = useState('2025');
+  const [transactions, setTransactions] = useState([]);
+ const today = new Date();
+const [selectedMonth, setSelectedMonth] = useState(today.getMonth().toString());
+const [selectedYear, setSelectedYear] = useState(today.getFullYear().toString());
 
-  // Filter transactions by selected period
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((t) => {
-      const date = new Date(t.date);
-      return (
-        date.getMonth() === parseInt(selectedMonth) &&
-        date.getFullYear() === parseInt(selectedYear)
-      );
-    });
-  }, [transactions, selectedMonth, selectedYear]);
 
-  // Profit & Loss Statement
+  // ✅ Fetch data when month/year changes
+  useEffect(() => {
+    fetchReport();
+  }, [selectedMonth, selectedYear]);
+
+  const fetchReport = async () => {
+    try {
+      const res = await axios.get("http://localhost:5000/api/reports/monthly", {
+        params: {
+          userId: user._id,
+          month: selectedMonth,
+          year: selectedYear,
+        },
+      });
+
+      setTransactions(res.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // ✅ Filter transactions (already monthly from backend)
+  const filteredTransactions = useMemo(() => transactions, [transactions]);
+
+  // ✅ Profit & Loss
   const profitLoss = useMemo(() => {
-    const income = filteredTransactions
-      .filter((t) => t.type === 'income')
-      .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount;
-        return acc;
-      }, {} as Record<string, number>);
+    const income: Record<string, number> = {};
+    const expenses: Record<string, number> = {};
 
-    const expenses = filteredTransactions
-      .filter((t) => t.type === 'expense')
-      .reduce((acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount;
-        return acc;
-      }, {} as Record<string, number>);
+    filteredTransactions.forEach((t: any) => {
+      if (t.type === "income") {
+        income[t.category] = (income[t.category] || 0) + t.amount;
+      } else if (t.type === "expense") {
+        expenses[t.category] = (expenses[t.category] || 0) + t.amount;
+      }
+    });
 
     const totalIncome = Object.values(income).reduce((sum, val) => sum + val, 0);
     const totalExpenses = Object.values(expenses).reduce((sum, val) => sum + val, 0);
@@ -50,29 +63,31 @@ export function Reports({ user }: ReportsProps) {
     return { income, expenses, totalIncome, totalExpenses, netProfit };
   }, [filteredTransactions]);
 
-  // Balance Sheet (Simplified)
+  // ✅ Balance Sheet
   const balanceSheet = useMemo(() => {
-    const cash = profitLoss.totalIncome - profitLoss.totalExpenses;
-    const assets = { cash, totalAssets: cash };
-    const equity = { retainedEarnings: cash, totalEquity: cash };
-    return { assets, equity };
+    const cash = profitLoss.netProfit;
+    return {
+      assets: { cash, totalAssets: cash },
+      equity: { retainedEarnings: cash, totalEquity: cash }
+    };
   }, [profitLoss]);
 
-  // Cash Flow Statement
+  // ✅ Cash Flow
   const cashFlow = useMemo(() => {
     const operating = profitLoss.netProfit;
-    const investing = 0;
-    const financing = 0;
-    const netCashFlow = operating + investing + financing;
-
-    return { operating, investing, financing, netCashFlow };
+    return {
+      operating,
+      investing: 0,
+      financing: 0,
+      netCashFlow: operating
+    };
   }, [profitLoss]);
 
   const handleExportCSV = () => {
     const csvContent = [
       ['Date', 'Type', 'Category', 'Description', 'Amount'],
-      ...filteredTransactions.map((t) => [
-        t.date,
+      ...filteredTransactions.map((t: any) => [
+        new Date(t.date).toLocaleDateString(),
         t.type,
         t.category,
         t.description,
@@ -91,29 +106,16 @@ export function Reports({ user }: ReportsProps) {
   };
 
   const months = [
-    'January',
-    'February',
-    'March',
-    'April',
-    'May',
-    'June',
-    'July',
-    'August',
-    'September',
-    'October',
-    'November',
-    'December',
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
   return (
     <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1>Financial Reports</h1>
-          <p className="text-muted-foreground">
-            View and export your financial statements
-          </p>
+          <p className="text-muted-foreground">View and export your financial statements</p>
         </div>
         <Button onClick={handleExportCSV} className="w-full md:w-auto">
           <Download className="mr-2 h-4 w-4" />
@@ -121,14 +123,14 @@ export function Reports({ user }: ReportsProps) {
         </Button>
       </div>
 
-      {/* Period Selector */}
+      {/* Month Selector */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 md:flex-row">
             <div className="flex-1">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
                   {months.map((month, index) => (
@@ -139,6 +141,7 @@ export function Reports({ user }: ReportsProps) {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex-1">
               <Select value={selectedYear} disabled>
                 <SelectTrigger>
@@ -153,7 +156,7 @@ export function Reports({ user }: ReportsProps) {
         </CardContent>
       </Card>
 
-      {/* Reports Tabs */}
+      {/* Tabs */}
       <Tabs defaultValue="profit-loss" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profit-loss">Profit & Loss</TabsTrigger>
@@ -170,8 +173,9 @@ export function Reports({ user }: ReportsProps) {
                 For {months[parseInt(selectedMonth)]} {selectedYear}
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
-              {/* Income Section */}
+              {/* Income */}
               <div>
                 <h3 className="mb-3">Income</h3>
                 <Table>
@@ -194,7 +198,7 @@ export function Reports({ user }: ReportsProps) {
                 </Table>
               </div>
 
-              {/* Expenses Section */}
+              {/* Expenses */}
               <div>
                 <h3 className="mb-3">Expenses</h3>
                 <Table>
@@ -225,7 +229,9 @@ export function Reports({ user }: ReportsProps) {
                       <TableCell>Net Profit</TableCell>
                       <TableCell
                         className={`text-right ${
-                          profitLoss.netProfit >= 0 ? 'text-green-600' : 'text-red-600'
+                          profitLoss.netProfit >= 0
+                            ? 'text-green-600'
+                            : 'text-red-600'
                         }`}
                       >
                         ${Math.abs(profitLoss.netProfit).toLocaleString()}
@@ -248,8 +254,8 @@ export function Reports({ user }: ReportsProps) {
                 As of {months[parseInt(selectedMonth)]} {selectedYear}
               </CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
-              {/* Assets */}
               <div>
                 <h3 className="mb-3">Assets</h3>
                 <Table>
@@ -270,7 +276,6 @@ export function Reports({ user }: ReportsProps) {
                 </Table>
               </div>
 
-              {/* Equity */}
               <div>
                 <h3 className="mb-3">Equity</h3>
                 <Table>
@@ -303,6 +308,7 @@ export function Reports({ user }: ReportsProps) {
                 For {months[parseInt(selectedMonth)]} {selectedYear}
               </CardDescription>
             </CardHeader>
+
             <CardContent>
               <Table>
                 <TableBody>
@@ -328,7 +334,9 @@ export function Reports({ user }: ReportsProps) {
                     <TableCell>Net Cash Flow</TableCell>
                     <TableCell
                       className={`text-right ${
-                        cashFlow.netCashFlow >= 0 ? 'text-green-600' : 'text-red-600'
+                        cashFlow.netCashFlow >= 0
+                          ? 'text-green-600'
+                          : 'text-red-600'
                       }`}
                     >
                       ${Math.abs(cashFlow.netCashFlow).toLocaleString()}
