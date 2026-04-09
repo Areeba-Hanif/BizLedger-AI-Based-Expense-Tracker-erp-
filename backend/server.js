@@ -7,7 +7,7 @@ import userRoutes from "./routes/userRoutes.js";
 import cors from "cors";
 import transactionRoutes from "./routes/transactionRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
-
+import aiRoutes from "./routes/aiRoutes.js";
 
 
 
@@ -20,7 +20,7 @@ app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/reports", reportRoutes);
-
+app.use("/api/ai", aiRoutes);
 
 
 

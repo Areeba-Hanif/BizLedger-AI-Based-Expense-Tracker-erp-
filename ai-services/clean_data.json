@@ -1,0 +1,62 @@
+[
+  {
+    "description": "Electric bill",
+    "category": "Utilities"
+  },
+  {
+    "description": "Internet bill",
+    "category": "Utilities"
+  },
+  {
+    "description": "Office transport",
+    "category": "Transportation"
+  },
+  {
+    "description": "Fuel charges",
+    "category": "Transportation"
+  },
+  {
+    "description": "Health insurance",
+    "category": "Insurance"
+  },
+  {
+    "description": "Vehicle insurance",
+    "category": "Insurance"
+  },
+  {
+    "description": "Laptop purchase",
+    "category": "Equipment"
+  },
+  {
+    "description": "Office devices",
+    "category": "Equipment"
+  },
+  {
+    "description": "Employee salary",
+    "category": "Salaries"
+  },
+  {
+    "description": "Staff wages",
+    "category": "Salaries"
+  },
+  {
+    "description": "Software services",
+    "category": "Professional Services"
+  },
+  {
+    "description": "Freelance development work",
+    "category": "Professional Services"
+  },
+  {
+    "description": "Client consultation",
+    "category": "Professional Services"
+  },
+  {
+    "description": "Rent",
+    "category": "Rent"
+  },
+  {
+    "description": "Fair",
+    "category": "Rent"
+  }
+]

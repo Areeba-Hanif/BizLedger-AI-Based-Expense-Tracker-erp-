@@ -1,0 +1,87 @@
+[
+    
+    {"description": "Office rent for November", "category": "Rent"},
+    {"description": "Monthly office rent", "category": "Rent"},
+    {"description": "Shop rent", "category": "Rent"},
+    {"description": "Warehouse lease payment", "category": "Rent"},
+    {"description": "Office space rental", "category": "Rent"},
+    {"description": "Studio rental fee", "category": "Rent"},
+    {"description": "Building lease", "category": "Rent"},
+    
+    
+    {"description": "Purchased office stationery", "category": "Office Supplies"},
+    {"description": "Bought pens and notebooks", "category": "Office Supplies"},
+    {"description": "Printer paper and ink", "category": "Office Supplies"},
+    {"description": "Staplers and clips", "category": "Office Supplies"},
+    {"description": "Whiteboard markers", "category": "Office Supplies"},
+    {"description": "Envelopes and postage stamps", "category": "Office Supplies"},
+    
+    
+    {"description": "Electricity bill", "category": "Utilities"},
+    {"description": "Water bill", "category": "Utilities"},
+    {"description": "Internet bill for office", "category": "Utilities"},
+    {"description": "Gas utility payment", "category": "Utilities"},
+    {"description": "Broadband monthly subscription", "category": "Utilities"},
+    {"description": "Phone and mobile bill", "category": "Utilities"},
+    {"description": "Waste collection fee", "category": "Utilities"},
+    {"description": "Electric bill payment", "category": "Utilities"},
+    
+    
+    {"description": "Employee monthly salary", "category": "Salaries"},
+    {"description": "Staff payroll payment", "category": "Salaries"},
+    {"description": "October wages", "category": "Salaries"},
+    {"description": "Bonus for performance", "category": "Salaries"},
+    {"description": "Freelance contractor payment", "category": "Salaries"},
+    {"description": "Stipend for interns", "category": "Salaries"},
+    {"description": "Salary transfer to staff", "category": "Salaries"},
+    
+   
+    {"description": "Purchased laptops", "category": "Equipment"},
+    {"description": "Office devices purchase", "category": "Equipment"},
+    {"description": "New computer monitors", "category": "Equipment"},
+    {"description": "Office chairs and desks", "category": "Equipment"},
+    {"description": "Server hardware upgrade", "category": "Equipment"},
+    {"description": "Projector for meeting room", "category": "Equipment"},
+    {"description": "MacBook purchase for design team", "category": "Equipment"},
+    
+   
+    {"description": "Company insurance payment", "category": "Insurance"},
+    {"description": "Health insurance premium", "category": "Insurance"},
+    {"description": "Vehicle insurance for company car", "category": "Insurance"},
+    {"description": "Property insurance policy", "category": "Insurance"},
+    {"description": "Business liability insurance", "category": "Insurance"},
+    {"description": "Workers compensation insurance", "category": "Insurance"},
+    
+    
+    {"description": "Consulting services payment", "category": "Professional Services"},
+    {"description": "Software consulting charges", "category": "Professional Services"},
+    {"description": "Legal advice fees", "category": "Professional Services"},
+    {"description": "Accounting and bookkeeping services", "category": "Professional Services"},
+    {"description": "Marketing agency retainer", "category": "Professional Services"},
+    {"description": "Freelance development work", "category": "Professional Services"},
+    {"description": "IT support services", "category": "Professional Services"},
+    
+   
+    {"description": "Snacks for office staff", "category": "Miscellaneous"},
+    {"description": "Tea and coffee expenses", "category": "Miscellaneous"},
+    {"description": "Office party supplies", "category": "Miscellaneous"},
+    {"description": "Petty cash for small items", "category": "Miscellaneous"},
+    {"description": "Flower arrangement for reception", "category": "Miscellaneous"},
+    {"description": "Gift for retiring employee", "category": "Miscellaneous"},
+    
+    
+    {"description": "Fuel charges for vehicle", "category": "Transportation"},
+    {"description": "Office transport expenses", "category": "Transportation"},
+    {"description": "Uber ride for client meeting", "category": "Transportation"},
+    {"description": "Taxi fare reimbursement", "category": "Transportation"},
+    {"description": "Parking fees at airport", "category": "Transportation"},
+    {"description": "Bus and train fares", "category": "Transportation"},
+    {"description": "Company car maintenance", "category": "Transportation"},
+
+    
+    {"description": "Product sales revenue", "category": "Sales"},
+    {"description": "Service income from client", "category": "Sales"},
+    {"description": "Consulting revenue", "category": "Sales"},
+    {"description": "Online store sales", "category": "Sales"},
+    {"description": "Quarterly sales income", "category": "Sales"}
+]

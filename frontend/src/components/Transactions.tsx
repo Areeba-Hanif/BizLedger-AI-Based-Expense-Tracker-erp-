@@ -34,7 +34,8 @@ export function Transactions({ user }: TransactionsProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+ const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
   
 useEffect(() => {
   if (user?._id) {
@@ -51,6 +52,7 @@ useEffect(() => {
   const [formDescription, setFormDescription] = useState('');
   const [formCategory, setFormCategory] = useState('');
   const [formDate, setFormDate] = useState(new Date().toISOString().split('T')[0]);
+  
   const [openEdit, setOpenEdit] = useState(false);
   const [editId, setEditId] = useState("");
   const [editAmount, setEditAmount] = useState("");
@@ -60,37 +62,59 @@ useEffect(() => {
   const [editDate, setEditDate] = useState("");
 
 
+/* ---------- REAL AI CATEGORY PREDICTION ---------- */
+/* ---------- REAL AI CATEGORY PREDICTION ---------- */
+useEffect(() => {
+  // 1. Only run if we have a description and we aren't editing
+  if (!formDescription || formDescription.length < 3 || openEdit) {
+    setAiSuggestion(null);
+    return;
+  }
+
+  const timer = setTimeout(async () => {
+    try {
+      setAiLoading(true);
+
+      // 2. We MUST send formType (income or expense) to the backend
+      const res = await axios.post(
+        "http://localhost:5000/api/ai/predict",
+        { 
+          description: formDescription,
+          type: formType // This ensures Node.js knows which category list to use
+        }
+      );
+
+      if (res.data?.predictedCategory) {
+        setAiSuggestion(res.data.predictedCategory);
+      }
+    } catch (err) {
+      console.error("AI error:", err);
+    } finally {
+      setAiLoading(false);
+    }
+  }, 600);
+
+  return () => clearTimeout(timer);
+  // 3. Add formType to dependencies so it re-predicts if you toggle the switch
+}, [formDescription, formType, openEdit]);
 // Simulate AI categorization
 const handleDescriptionChange = (description: string) => {
   setFormDescription(description);
 
-  // ✅ Disable AI category auto-change while editing
+  // Disable AI category auto-change while editing
   if (openEdit) return;
 
-  // Simple AI simulation based on keywords
-  const lowercaseDesc = description.toLowerCase();
-  let suggestedCategory = '';
-
-  if (lowercaseDesc.includes('rent') || lowercaseDesc.includes('lease')) {
-    suggestedCategory = 'Rent';
-  } else if (lowercaseDesc.includes('salary') || lowercaseDesc.includes('wage')) {
-    suggestedCategory = 'Salaries';
-  } else if (lowercaseDesc.includes('office') || lowercaseDesc.includes('supplies')) {
-    suggestedCategory = 'Office Supplies';
-  } else if (lowercaseDesc.includes('marketing') || lowercaseDesc.includes('ad')) {
-    suggestedCategory = 'Marketing';
-  } else if (lowercaseDesc.includes('utility') || lowercaseDesc.includes('electric') || lowercaseDesc.includes('water')) {
-    suggestedCategory = 'Utilities';
-  } else if (lowercaseDesc.includes('sale') || lowercaseDesc.includes('revenue')) {
-    suggestedCategory = 'Sales';
-  }
-
-  if (suggestedCategory && description.length > 5) {
-    setAiSuggestion(suggestedCategory);
-  } else {
+  // If description is cleared, remove suggestion
+  if (description.length <= 5) {
     setAiSuggestion(null);
   }
 };
+
+useEffect(() => {
+  // Clear suggestion if user switches between Income/Expense
+  setAiSuggestion(null);
+  setFormCategory(""); 
+}, [formType]);
 
 const handleAddTransaction = async (e: any) => {
   e.preventDefault();
@@ -352,13 +376,16 @@ const handleOpenEdit = (transaction: Transaction) => {
         </SelectTrigger>
 
         <SelectContent>
-          {/* ✅ Dynamic categories same as add */}
-          {(editType === "income" ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
-            <SelectItem key={cat} value={cat}>
-              {cat}
-            </SelectItem>
-          ))}
-        </SelectContent>
+    {categories.map((cat) => (
+      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+    ))}
+    {/* ✅ Add AI category dynamically if not in list */}
+    {aiSuggestion && !categories.includes(aiSuggestion) && (
+      <SelectItem key={aiSuggestion} value={aiSuggestion}>
+        {aiSuggestion} (AI)
+      </SelectItem>
+    )}
+  </SelectContent>
       </Select>
     </div>
 

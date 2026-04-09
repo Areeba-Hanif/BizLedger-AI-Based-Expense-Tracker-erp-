@@ -1,7 +1,7 @@
 // Dashboard.tsx (or Dashboard.jsx if you remove TypeScript types)
 import { useMemo, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Wallet, Sparkles } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -17,6 +17,11 @@ import {
 } from 'recharts';
 import { Alert, AlertDescription } from './ui/alert';
 import axios from 'axios';
+import { Download } from 'lucide-react';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import { toast } from 'sonner';
+import { Button } from './ui/button';
 
 interface DashboardProps {
   user?: { _id?: string; name?: string } | null;
@@ -36,28 +41,43 @@ interface Transaction {
 
 export function Dashboard({ user }: DashboardProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [aiSummary, setAiSummary] = useState<string>('Generating AI insights...');
+
+
 
   useEffect(() => {
-    const fetchTransactions = async () => {
+    const loadDashboardData = async () => {
       try {
-        const userId = user?._id ?? '674b08e91d5a4'; // fallback id if needed
+        // 1. Determine the correct User ID
+        const userId = user?._id ?? '674b08e91d5a4';
+        
+        // 2. Fetch Transactions from Node.js
         const res = await axios.get<Transaction[]>(`http://localhost:5000/api/transactions/${userId}`);
-        // normalize ensure amounts are numbers and date is string
+        
+        // 3. Normalize the data so dates and amounts are clean
         const normalized = res.data.map((t) => ({
           ...t,
           amount: typeof t.amount === 'number' ? t.amount : Number(t.amount || 0),
           date: typeof t.date === 'string' ? t.date : new Date(t.date).toISOString(),
         }));
+        
         setTransactions(normalized);
+
+        // 4. Fetch the AI Summary
+        // We do this inside the same block to ensure it happens in order
+        const aiRes = await axios.get(`http://localhost:5000/api/ai/get-monthly-summary/${userId}`);
+        setAiSummary(aiRes.data.summary);
+
       } catch (err) {
-        console.error('Error fetching transactions:', err);
-        setTransactions([]); // keep UI stable
+        console.error('Dashboard Load Error:', err);
+        setAiSummary("Could not load AI insights.");
       }
     };
 
-    // only fetch if we have user id OR if user is null we still fetch fallback
-    fetchTransactions();
-  }, [user]);
+    loadDashboardData();
+  }, [user?._id]); // This ensures it runs once on load, and again if the user changes
+
+  // ... (rest of your useMemo logic for metrics and charts)
 
   // Current month/year (real calendar)
   const now = useMemo(() => new Date(), []);
@@ -126,19 +146,78 @@ export function Dashboard({ user }: DashboardProps) {
     return Math.round(score);
   }, [metrics]);
 
-  // If you prefer a visual "loading" while first fetch happens, you can toggle a loading flag.
-  // Here we simply render with whatever data we have (empty arrays produce 0 totals).
+
+
+const downloadPDF = () => {
+  try {
+    // 1. Change title for the file name
+    const oldTitle = document.title;
+    document.title = `Financial_Report_${new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}`;
+
+    // 2. Show a neutral info message instead of a success message
+    const toastId = toast.info("Opening print preview...", { duration: 2000 });
+
+    // 3. Trigger Print (JavaScript PAUSES here until you close the popup)
+    window.print();
+
+    // 4. This code only runs AFTER the print window is closed (Saved or Cancelled)
+    setTimeout(() => {
+      document.title = oldTitle;
+      // We don't show a success toast here because we can't be 100% sure they saved it.
+      // If you want a message, make it neutral:
+      toast.dismiss(toastId);
+    }, 500);
+
+  } catch (error) {
+    console.error("Print failed", error);
+    toast.error("Failed to open print dialog.");
+  }
+};
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div>
+      <div className="no-print">
         <h1>Dashboard</h1>
         <p className="text-muted-foreground">
           Welcome back, {user?.name ?? 'User'}! Here's your business overview for{' '}
           {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}.
         </p>
       </div>
-
+     <Button onClick={downloadPDF} variant="outline" className="no-print flex gap-2">
+    <Download className="h-4 w-4" />
+    Save as PDF
+  </Button>
+{/* --- INTEGRATED AI INSIGHTS CARD --- */}
+<div id="dashboard-content" className="space-y-6 bg-white p-4">
+  {/* --- PRINT ONLY HEADER --- */}
+  <div className="print-only print:block border-b-2 border-indigo-600 pb-4 mb-6">
+    <div className="flex justify-between items-end">
+      <div>
+        <h1 className="text-2xl font-bold text-indigo-900">BizLedger Analytics</h1>
+        <p className="text-sm text-slate-500">Comprehensive Financial Performance Report</p>
+      </div>
+      <div className="text-right">
+        <p className="font-medium">{user?.name || 'Business Owner'}</p>
+        <p className="text-xs text-slate-400">
+          {new Date().toLocaleDateString(undefined, { dateStyle: 'full' })}
+        </p>
+      </div>
+    </div>
+  </div>
+      <Card className="bg-slate-50 border-blue-200 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-blue-600" />
+            AI Monthly Analysis
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-slate-700 italic" style={{ whiteSpace: 'pre-wrap' }}>
+            "{aiSummary}"
+          </p>
+        </CardContent>
+      </Card>
       {/* Financial Health Alert */}
       <Alert>
         <TrendingUp className="h-4 w-4" />
@@ -243,6 +322,7 @@ export function Dashboard({ user }: DashboardProps) {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Recent Transactions */}

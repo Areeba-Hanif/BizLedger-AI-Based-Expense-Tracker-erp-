@@ -1,4 +1,5 @@
 /*! tailwindcss v4.1.3 | MIT License | https://tailwindcss.com */
+
 @layer properties {
   @supports (((-webkit-hyphens: none)) and (not (margin-trim: inline))) or ((-moz-orient: inline) and (not (color: rgb(from red r g b)))) {
     *, :before, :after, ::backdrop {
@@ -2488,5 +2489,25 @@ html {
   to {
     opacity: var(--tw-exit-opacity, 1);
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
+
+
+/* 1. Hide this class by default on the website */
+.print-only {
+  display: none !important;
+}
+
+@media print {
+  /* 2. Show this class only when printing */
+  .print-only {
+    display: flex !important; /* or block */
+    width: 100%;
+  }
+
+  /* 3. Hide the dashboard buttons and nav so they don't clutter the PDF */
+  .no-print {
+    display: none !important;
   }
 }

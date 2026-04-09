@@ -1,14 +1,14 @@
 export const EXPENSE_CATEGORIES = [
-  'Rent',
-  'Utilities',
-  'Salaries',
-  'Office Supplies',
-  'Marketing',
-  'Transportation',
-  'Equipment',
-  'Professional Services',
-  'Insurance',
-  'Miscellaneous',
+  "Utilities",
+  "Transportation",
+  "Salaries",
+  "Equipment",
+  "Insurance",
+  "Professional Services",
+  "Rent",               
+  "Office Supplies",    
+  "Miscellaneous",
+  "Other"
 ];
 
 export const INCOME_CATEGORIES = [
